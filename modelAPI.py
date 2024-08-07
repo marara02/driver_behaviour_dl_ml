@@ -1,12 +1,9 @@
 import numpy as np
 import tensorflow as tf
 from flask import Flask, request, jsonify, render_template
-
+import h5py
 
 app = Flask(__name__)
-
-# Loading a model
-model = tf.keras.models.load_model("model_drive_style.h5")
 
 @app.route('/')
 def home():
@@ -15,20 +12,28 @@ def home():
 
 @app.route("/predict", methods = ['POST'])
 def predict():
-    data = request.get_json(force=True)
-    print("Received data:", data)
-    features = np.array([[
-        entry["AccX"],
-        entry["AccY"],
-        entry["AccZ"],
-        entry["GyroX"],
-        entry["GyroY"],
-        entry["GyroZ"]
-    ] for entry in data])
+    file_path = "model_drive_style.h5"
+    try:
+        with h5py.File(file_path, 'r') as f:
+            # Loading a model
+            model = tf.keras.models.load_model(file_path)
+            print("HDF5 file is accessible.")
+        data = request.get_json(force=True)
+        print("Received data:", data)
+        features = np.array([[
+            entry["AccX"],
+            entry["AccY"],
+            entry["AccZ"],
+            entry["GyroX"],
+            entry["GyroY"],
+            entry["GyroZ"]
+        ] for entry in data])
 
-    prediction = model.predict(features)
+        prediction = model.predict(features)
 
-    return jsonify(prediction.tolist())
+        return jsonify(prediction.tolist())
+    except OSError as e:
+        raise OSError(f"Unable to open the file: {e}")
 
 
 if __name__ == '__main__':
