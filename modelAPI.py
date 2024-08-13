@@ -30,8 +30,16 @@ def predict():
         ] for entry in data])
 
         prediction = model.predict(features)
-
-        return jsonify(prediction.tolist())
+        result = prediction.tolist()
+        type_1 = 'AGGRESSIVE'
+        type_2 = 'NORMAL'
+        type_1_per = [i for i in result if i == type_1] 
+        type_2_per = [i for i in result if i == type_2] 
+        res = [{
+            'AGGRESSIVE' : (len(type_1_per) / len(result)) * 100,
+            'NORMAL' : (len(type_2_per) / len(result)) * 100
+        }]
+        return jsonify(res)
     except OSError as e:
         raise OSError(f"Unable to open the file: {e}")
 

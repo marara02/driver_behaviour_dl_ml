@@ -244,4 +244,79 @@ history_2 = model_2.fit(X_train_two, y_train_two, epochs=80, validation_data=(X_
     callbacks=[stop_early], 
     shuffle=True)
 
-model_2.save("model_drive_style.h5")
+
+
+
+def extract_features(df, window_size):
+    features = []
+    labels = []
+    for i in range(0, len(df), window_size):
+        window = df.iloc[i:i+window_size]
+        if len(window) == window_size:
+            acc_x = window['AccX'].values
+            acc_y = window['AccY'].values
+            acc_z = window['AccZ'].values
+            gyro_x = window['GyroX'].values
+            gyro_y = window['GyroY'].values
+            gyro_z = window['GyroZ'].values
+
+            # Time domain features
+            feature_vector = [
+                np.mean(acc_x), np.std(acc_x), skew(acc_x), kurtosis(acc_x),
+                np.mean(acc_y), np.std(acc_y), skew(acc_y), kurtosis(acc_y),
+                np.mean(acc_z), np.std(acc_z), skew(acc_z), kurtosis(acc_z),
+                np.mean(gyro_x), np.std(gyro_x), skew(gyro_x), kurtosis(gyro_x),
+                np.mean(gyro_y), np.std(gyro_y), skew(gyro_y), kurtosis(gyro_y),
+                np.mean(gyro_z), np.std(gyro_z), skew(gyro_z), kurtosis(gyro_z)
+            ]
+
+            # Frequency domain features (FFT)
+            fft_acc_x = np.abs(fft(acc_x))
+            fft_acc_y = np.abs(fft(acc_y))
+            fft_acc_z = np.abs(fft(acc_z))
+            fft_gyro_x = np.abs(fft(gyro_x))
+            fft_gyro_y = np.abs(fft(gyro_y))
+            fft_gyro_z = np.abs(fft(gyro_z))
+            feature_vector.extend([
+                np.mean(fft_acc_x), np.std(fft_acc_x),
+                np.mean(fft_acc_y), np.std(fft_acc_y),
+                np.mean(fft_acc_z), np.std(fft_acc_z),
+                np.mean(fft_gyro_x), np.std(fft_gyro_x),
+                np.mean(fft_gyro_y), np.std(fft_gyro_y),
+                np.mean(fft_gyro_z), np.std(fft_gyro_z)
+            ])
+            
+            features.append(feature_vector)
+            labels.append(window['Class'].mode()[0])  # Assuming class labels are consistent within a window
+
+    return np.array(features), np.array(labels)
+
+
+class_mapping = {'NORMAL': 1, 'AGGRESSIVE': 2}
+df_train['Class'] = df_train['Class'].replace(class_mapping)
+df_test['Class'] = df_test['Class'].replace(class_mapping)
+
+df_train_2_cl = df_train_2_cl.dropna()
+df_test_2_cl = df_test_2_cl.dropna()
+
+window_size = 8
+
+# Extract features and labels
+X_train_rf, y_train_rf = extract_features(df_train_2_cl, window_size)
+X_test_rf, y_test_rf = extract_features(df_test_2_cl, window_size)
+
+scaler = StandardScaler(with_mean=True, with_std=True)
+X_train_rf = scaler.fit_transform(X_train_rf)
+X_test_rf = scaler.fit_transform(X_test_rf)
+
+rfc = RandomForestClassifier(n_estimators=300, random_state=42)
+
+rf_history = rfc.fit(X_train_rf, y_train_rf)
+
+y_pred_rf = rfc.predict(X_test_rf)
+print('Model accuracy score: {0:0.4f}'. format(accuracy_score(y_test_rf, y_pred_rf)))
+
+with open('random_forest_model.pkl', 'wb') as file:
+    pickle.dump(rfc, file)
+    
+# model_2.save("model_drive_style.h5")
