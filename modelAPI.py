@@ -2,6 +2,10 @@ import numpy as np
 import tensorflow as tf
 from flask import Flask, request, jsonify, render_template
 import h5py
+from flask_socketio import SocketIO, emit
+import cv2
+import base64
+from keras.models import load_model
 
 app = Flask(__name__)
 
